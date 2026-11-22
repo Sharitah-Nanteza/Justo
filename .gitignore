@@ -1,0 +1,6 @@
+﻿__pycache__/
+*.py[cod]
+justo.db
+.env
+venv/
+.venv/

@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JUSTO — Local Council Court Docket & Citizen Access</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --border: #cbd5e1;
+      --primary: #0f172a;
+      --accent: #1d4ed8;
+      --ok-bg: #dcfce7;
+      --ok-ink: #166534;
+      --warn-bg: #fef3c7;
+      --warn-ink: #92400e;
+      --err-bg: #fee2e2;
+      --err-ink: #991b1b;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+
+    /* Top Header */
+    header {
+      background: var(--primary);
+      color: #ffffff;
+      padding: 14px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 3px solid #334155;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      background: #ffffff;
+      color: var(--primary);
+      font-weight: 800;
+      padding: 6px 10px;
+      border-radius: 4px;
+      letter-spacing: 0.08em;
+      font-size: 15px;
+    }
+    .brand-sub { font-size: 13px; color: #cbd5e1; }
+
+    .sync-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .status-pill {
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+    .status-online { background: var(--ok-bg); color: var(--ok-ink); }
+    .status-offline { background: var(--warn-bg); color: var(--warn-ink); }
+
+    button {
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      font-size: 13px;
+      background: #ffffff;
+      color: var(--ink);
+      transition: background 0.15s ease;
+    }
+    button:hover { background: #f1f5f9; }
+    button.btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+    button.btn-primary:hover { background: #1e293b; }
+    button.btn-accent {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+    }
+    button.btn-accent:hover { background: #1e40af; }
+
+    /* Navigation Tabs */
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+    }
+    nav button {
+      border: none;
+      border-bottom: 3px solid transparent;
+      border-radius: 0;
+      padding: 13px 16px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    nav button.active {
+      color: var(--ink);
+      border-bottom-color: var(--ink);
+      font-weight: 700;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 22px auto;
+      padding: 0 20px 48px;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Grid & Cards */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+    .card h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+    }
+    .card p.desc {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* Form Controls */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+    .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+    .field.full { grid-column: 1 / -1; }
+    label { font-size: 12px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.03em; }
+    input, select, textarea {
+      padding: 9px 11px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #ffffff;
+      color: var(--ink);
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid #94a3b8;
+      border-color: var(--ink);
+    }
+
+    /* Alerts & Guardrail Box */
+    .alert {
+      padding: 12px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-top: 10px;
+      border: 1px solid transparent;
+    }
+    .alert-ok { background: var(--ok-bg); color: var(--ok-ink); border-color: #86efac; }
+    .alert-warn { background: var(--warn-bg); color: var(--warn-ink); border-color: #fcd34d; }
+    .alert-err { background: var(--err-bg); color: var(--err-ink); border-color: #fca5a5; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      text-align: left;
+      padding: 11px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    th {
+      background: #f1f5f9;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #334155;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-valid { background: var(--ok-bg); color: var(--ok-ink); }
+    .badge-ref { background: var(--err-bg); color: var(--err-ink); }
+    .badge-pending { background: var(--warn-bg); color: var(--warn-ink); }
+
+    /* Feature Phone USSD Simulator */
+    .phone-shell {
+      max-width: 340px;
+      margin: 0 auto;
+      background: #1e293b;
+      border-radius: 26px;
+      padding: 18px 16px 22px;
+      color: #f8fafc;
+      border: 4px solid #0f172a;
+    }
+    .phone-speaker {
+      width: 54px;
+      height: 5px;
+      background: #475569;
+      border-radius: 4px;
+      margin: 0 auto 12px;
+    }
+    .phone-screen {
+      background: #ecfdf5;
+      color: #064e3b;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 14px;
+      border-radius: 8px;
+      min-height: 190px;
+      white-space: pre-wrap;
+      border: 2px solid #0f172a;
+      margin-bottom: 12px;
+    }
+    .phone-controls { display: flex; gap: 8px; }
+    .phone-controls input { flex: 1; font-family: monospace; font-weight: 700; }
+
+    /* Modal for Official Record / Appeal Packet */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: #ffffff;
+      max-width: 640px;
+      width: 100%;
+      border-radius: 8px;
+      padding: 24px;
+      border: 2px solid var(--ink);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .record-box {
+      border: 1.5px solid #0f172a;
+      padding: 16px;
+      margin: 12px 0;
+      background: #ffffff;
+    }
+    .record-header {
+      text-align: center;
+      border-bottom: 1.5px solid #0f172a;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .mono { font-family: "Courier New", Courier, monospace; font-weight: 700; }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printableRecord, #printableRecord * { visibility: visible; }
+      #printableRecord {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        border: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="brand-mark">JUSTO</span>
+    <div>
+      <div style="font-weight: 700; font-size: 15px;">Local Council Court Docket &amp; Citizen Access</div>
+      <div class="brand-sub">Team CodeXora &bull; Local Council Courts Act, 2006 &bull; Nationwide Multi-Language</div>
+    </div>
+  </div>
+
+  <div class="sync-bar">
+    <span id="networkPill" class="status-pill status-online">ONLINE &bull; SYNCED</span>
+    <button type="button" id="toggleOfflineBtn" onclick="toggleSimulatedOffline()">Simulate Offline Mode</button>
+    <button type="button" id="syncNowBtn" class="btn-accent" onclick="syncOfflineQueue()" style="display:none;">
+      Sync Offline Queue (<span id="queueCount">0</span>)
+    </button>
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="switchTab('intake', this)">1. Case Intake &amp; Guardrails</button>
+  <button onclick="switchTab('docket', this)">2. Digital Docket &amp; Appeals</button>
+  <button onclick="switchTab('ussd', this)">3. Citizen USSD (*384*2026#)</button>
+  <button onclick="switchTab('legal', this)">4. JUSTO Legal Guide</button>
+</nav>
+
+<main>
+  <!-- TAB 1: CASE INTAKE & JURISDICTION GUARDRAILS -->
+  <section id="tab-intake" class="tab-panel active">
+    <div class="grid-2">
+      <div class="card">
+        <h2>Register New LC1 Dispute</h2>
+        <p class="desc">Works 100% offline. Automatically enforces statutory subject-matter limits, the UGX 2,000,000 ceiling, and Section 8 quorum rules.</p>
+
+        <form id="caseForm" onsubmit="submitCase(event)">
+          <div class="form-grid">
+            <div class="field full">
+              <label for="village_court">Village / Parish Court Name</label>
+              <input id="village_court" required value="Naguru I Village LC1 Court, Nakawa" />
+            </div>
+
+            <div class="field">
+              <label for="complainant_name">Complainant Full Name</label>
+              <input id="complainant_name" required placeholder="e.g. Nambi Grace" />
+            </div>
+            <div class="field">
+              <label for="complainant_phone">Complainant Phone (SMS Receipt)</label>
+              <input id="complainant_phone" required placeholder="+256772000111" />
+            </div>
+
+            <div class="field">
+              <label for="respondent_name">Respondent Full Name</label>
+              <input id="respondent_name" required placeholder="e.g. Kato Robert" />
+            </div>
+            <div class="field">
+              <label for="respondent_phone">Respondent Phone (Summons)</label>
+              <input id="respondent_phone" required placeholder="+256701000222" />
+            </div>
+
+            <div class="field">
+              <label for="category">Dispute Category</label>
+              <select id="category" onchange="runLiveGuardrailPreview()">
+                <optgroup label="Within LC1 Civil &amp; Customary Jurisdiction">
+                  <option value="minor_debt">Minor Debt / Breach of Contract</option>
+                  <option value="customary_land_boundary">Customary Land Boundary / Trespass</option>
+                  <option value="domestic_mediation">Domestic / Neighborhood Peace Mediation</option>
+                  <option value="chattel_damage">Damage to Property / Livestock Trespass</option>
+                </optgroup>
+                <optgroup label="Out-of-Jurisdiction (Statutory Referral Required)">
+                  <option value="criminal_felony">Criminal Offence / Assault / Theft</option>
+                  <option value="registered_land_title">Registered Land Title Dispute</option>
+                  <option value="divorce_statutory">Statutory Marriage Divorce / Custody Order</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="claim_amount_ugx">Claim Value (UGX)</label>
+              <input id="claim_amount_ugx" type="number" min="0" value="350000" oninput="runLiveGuardrailPreview()" />
+            </div>
+
+            <div class="field">
+              <label for="quorum_present">Court Members Sitting (Min. 5)</label>
+              <input id="quorum_present" type="number" min="1" max="15" value="5" oninput="runLiveGuardrailPreview()" />
+            </div>
+
+            <div class="field">
+              <label for="women_present">Women Members Sitting (Min. 2)</label>
+              <input id="women_present" type="number" min="0" max="15" value="2" oninput="runLiveGuardrailPreview()" />
+            </div>
+
+            <div class="field full">
+              <label for="hearing_date">Scheduled Hearing Date &amp; Time</label>
+              <input id="hearing_date" value="2026-11-26 10:00" />
+            </div>
+
+            <div class="field full">
+              <label for="summary">Brief Statement of Claim</label>
+              <textarea id="summary" rows="2" placeholder="Describe the dispute clearly for the permanent record..."></textarea>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" style="width: 100%; padding: 11px; font-size: 14px;">
+            Log Case &amp; Issue Verification Code
+          </button>
+        </form>
+
+        <div id="submitFeedback"></div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h2>Live Statutory Guardrail Check</h2>
+          <p class="desc">Real-time compliance check under the <strong>Local Council Courts Act, 2006</strong> before a hearing begins.</p>
+          <div id="guardrailPreview" class="alert alert-ok">
+            <strong>VALID FOR LC1 HEARING:</strong> Subject matter, claim value (&le; UGX 2,000,000), and court quorum (5 members, 2 women) satisfy statutory requirements.
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>How Offline-First Sync Works</h2>
+          <p class="desc">Built for rural villages with intermittent connectivity:</p>
+          <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #334155;">
+            <li style="margin-bottom: 6px;">Click <strong>Simulate Offline Mode</strong> in the top bar (or disconnect Wi-Fi).</li>
+            <li style="margin-bottom: 6px;">Register a new dispute—JUSTO generates a local verification code immediately and queues the record in browser storage.</li>
+            <li>Reconnect and click <strong>Sync Offline Queue</strong> to push queued dockets to the central SQLite/JLOS registry.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: DIGITAL DOCKET & APPEALS -->
+  <section id="tab-docket" class="tab-panel">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+        <div>
+          <h2 style="margin:0;">Village Court Digital Docket</h2>
+          <p class="desc" style="margin:2px 0 0;">Tamper-evident case registry. Generate official judgment or 14-day LC2/Magistrate appeal records.</p>
+        </div>
+        <button onclick="loadCases()">Refresh Docket</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Case ID &amp; Hash</th>
+              <th>Parties</th>
+              <th>Category &amp; Claim</th>
+              <th>Quorum</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="docketBody">
+            <tr><td colspan="6">Loading cases...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: INTERACTIVE CITIZEN USSD SIMULATOR -->
+  <section id="tab-ussd" class="tab-panel">
+    <div class="grid-2">
+      <div class="card">
+        <h2>Citizen Feature-Phone USSD (<span class="mono">*384*2026#</span>)</h2>
+        <p class="desc">Test how a citizen without a smartphone or internet checks case status, official fees, and appeal timelines in 5 Ugandan languages.</p>
+
+        <div class="phone-shell">
+          <div class="phone-speaker"></div>
+          <div id="ussdScreen" class="phone-screen">Dial *384*2026# and press Send to begin...</div>
+          <div class="phone-controls">
+            <input id="ussdInput" placeholder="Enter option (e.g. 1)" onkeydown="if(event.key==='Enter') sendUssdStep()" />
+            <button type="button" class="btn-accent" onclick="sendUssdStep()">Send</button>
+            <button type="button" onclick="resetUssd()">Dial</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Quick Demo Walkthrough</h2>
+        <p class="desc">Follow these steps on the handset simulator to show judges multi-language citizen access:</p>
+        <ol style="padding-left: 18px; font-size: 13px; color: #334155;">
+          <li style="margin-bottom: 8px;">Click <strong>Dial</strong> to open the language menu (<strong>1. English, 2. Luganda, 3. Runyankole-Rukiga, 4. Swahili, 5. Luo</strong>).</li>
+          <li style="margin-bottom: 8px;">Type <strong>2</strong> (Luganda) or <strong>3</strong> (Runyankole-Rukiga) and click <strong>Send</strong>.</li>
+          <li style="margin-bottom: 8px;">Type <strong>1</strong> (Check Case Status) and click <strong>Send</strong>.</li>
+          <li style="margin-bottom: 8px;">Type <strong>JST-2026-001</strong> (or any new Case ID you just created) and click <strong>Send</strong> to view live docket status and verification hash.</li>
+        </ol>
+        <div class="alert alert-ok">
+          <strong>Inclusive Design:</strong> All USSD menus and statutory fee notices work on basic 2G feature phones with zero mobile data required.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: JUSTO LEGAL GUIDE -->
+  <section id="tab-legal" class="tab-panel">
+    <div class="grid-2">
+      <div class="card">
+        <h2>JUSTO Legal Procedure Assistant</h2>
+        <p class="desc">Grounded in Uganda's <strong>Local Council Courts Act, 2006</strong> to prevent unlawful fees, invalid quorum rulings, and missed appeal deadlines.</p>
+
+        <div class="field">
+          <label for="legalQuestion">Ask a Procedural Question</label>
+          <input id="legalQuestion" placeholder="e.g. How many women must sit to form a valid LC1 quorum?" onkeydown="if(event.key==='Enter') askLegalGuide()" />
+        </div>
+        <button type="button" class="btn-primary" onclick="askLegalGuide()">Ask JUSTO Guide</button>
+
+        <div style="margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px;">
+          <button type="button" onclick="quickAsk('What is the required quorum and women representation?')">Quorum &amp; Women Rule</button>
+          <button type="button" onclick="quickAsk('How many days to file an appeal to LC2?')">14-Day Appeal Rule</button>
+          <button type="button" onclick="quickAsk('What are the official LC court fees?')">Official Court Fees</button>
+          <button type="button" onclick="quickAsk('What is the maximum claim amount for LC1?')">UGX 2M Monetary Limit</button>
+        </div>
+
+        <div id="legalAnswerBox" style="margin-top: 16px;"></div>
+      </div>
+
+      <div class="card">
+        <h2>Key Statutory Safeguards Built Into JUSTO</h2>
+        <ul style="padding-left: 18px; font-size: 13px; color: #334155;">
+          <li style="margin-bottom: 8px;"><strong>Section 8 (Quorum):</strong> Minimum 5 members sitting, including at least 2 women.</li>
+          <li style="margin-bottom: 8px;"><strong>Section 10 (Jurisdiction):</strong> Civil debts/contracts up to UGX 2,000,000 (100 currency points) and customary disputes; blocks criminal felonies and registered land titles.</li>
+          <li style="margin-bottom: 8px;"><strong>Section 32 (Appeals):</strong> Standardized, hash-verified judgment record issued within the 14-day statutory appeal window.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- MODAL: CERTIFIED RECORD & APPEAL PACKET -->
+<div id="recordModal" class="modal-backdrop" onclick="if(event.target===this) closeModal()">
+  <div class="modal">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0;">Certified LC1 Court Record &amp; Appeal Packet</h3>
+      <button onclick="closeModal()">Close</button>
+    </div>
+
+    <div id="printableRecord" class="record-box"></div>
+
+    <div class="field" style="margin-top: 12px;">
+      <label for="rulingInput">Record / Update Court Ruling or Consent Terms</label>
+      <textarea id="rulingInput" rows="2" placeholder="Enter mediated settlement or judgment terms..."></textarea>
+    </div>
+    <div style="display:flex; gap: 8px; flex-wrap: wrap;">
+      <button class="btn-primary" onclick="saveRuling('RESOLVED_CONSENT')">Save Consent Judgment</button>
+      <button onclick="saveRuling('APPEALED_TO_LC2')">Mark Appealed to LC2</button>
+      <button class="btn-accent" onclick="window.print()">Print / Save Official PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const OFFLINE_QUEUE_KEY = "justo_offline_queue_v1";
+  const CACHED_CASES_KEY = "justo_cached_cases_v1";
+  let simulatedOffline = false;
+  let allCases = [];
+  let activeRecordCaseId = null;
+  let ussdHistory = [];
+
+  function isOffline() {
+    return simulatedOffline || !navigator.onLine;
+  }
+
+  function updateNetworkUI() {
+    const pill = document.getElementById("networkPill");
+    const toggleBtn = document.getElementById("toggleOfflineBtn");
+    const syncBtn = document.getElementById("syncNowBtn");
+    const queue = getOfflineQueue();
+
+    if (isOffline()) {
+      pill.textContent = "OFFLINE MODE \u2022 LOCAL STORAGE ACTIVE";
+      pill.className = "status-pill status-offline";
+      toggleBtn.textContent = "Go Back Online";
+    } else {
+      pill.textContent = "ONLINE \u2022 CONNECTED TO REGISTRY";
+      pill.className = "status-pill status-online";
+      toggleBtn.textContent = "Simulate Offline Mode";
+    }
+
+    document.getElementById("queueCount").textContent = queue.length;
+    syncBtn.style.display = queue.length > 0 ? "inline-block" : "none";
+  }
+
+  function toggleSimulatedOffline() {
+    simulatedOffline = !simulatedOffline;
+    updateNetworkUI();
+    if (!isOffline() && getOfflineQueue().length > 0) {
+      syncOfflineQueue();
+    }
+  }
+
+  window.addEventListener("online", () => {
+    updateNetworkUI();
+    if (getOfflineQueue().length > 0) syncOfflineQueue();
+  });
+  window.addEventListener("offline", updateNetworkUI);
+
+  function getOfflineQueue() {
+    try {
+      return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  function setOfflineQueue(items) {
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(items));
+    updateNetworkUI();
+  }
+
+  function switchTab(tabName, btn) {
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+    document.getElementById("tab-" + tabName).classList.add("active");
+    btn.classList.add("active");
+    if (tabName === "docket") loadCases();
+  }
+
+  function runLiveGuardrailPreview() {
+    const category = document.getElementById("category").value;
+    const amount = Number(document.getElementById("claim_amount_ugx").value || 0);
+    const quorum = Number(document.getElementById("quorum_present").value || 0);
+    const women = Number(document.getElementById("women_present").value || 0);
+    const box = document.getElementById("guardrailPreview");
+
+    const prohibited = {
+      criminal_felony: "Criminal offences must be referred to the Uganda Police Force & Magistrate's Court.",
+      registered_land_title: "Registered land title disputes must be referred to the Chief Magistrate / High Court.",
+      divorce_statutory: "Statutory marriage dissolution/custody must be referred to the Family & Children Court."
+    };
+
+    const issues = [];
+    if (prohibited[category]) issues.push(prohibited[category]);
+    if (amount > 2000000) issues.push(`Claim UGX ${amount.toLocaleString()} exceeds the UGX 2,000,000 statutory LC ceiling.`);
+    if (quorum < 5 || women < 2) issues.push(`Invalid quorum (${quorum} members, ${women} women). Requires at least 5 members including 2 women.`);
+
+    if (issues.length > 0) {
+      box.className = "alert alert-err";
+      box.innerHTML = `<strong>JURISDICTION / QUORUM BLOCK:</strong><br>${issues.join("<br>")}`;
+    } else {
+      box.className = "alert alert-ok";
+      box.innerHTML = `<strong>VALID FOR LC1 HEARING:</strong> Subject matter, claim value (&le; UGX 2,000,000), and court quorum (${quorum} members, ${women} women) satisfy statutory requirements.`;
+    }
+  }
+
+  async function submitCase(e) {
+    e.preventDefault();
+    const payload = {
+      village_court: document.getElementById("village_court").value.trim(),
+      complainant_name: document.getElementById("complainant_name").value.trim(),
+      complainant_phone: document.getElementById("complainant_phone").value.trim(),
+      respondent_name: document.getElementById("respondent_name").value.trim(),
+      respondent_phone: document.getElementById("respondent_phone").value.trim(),
+      category: document.getElementById("category").value,
+      claim_amount_ugx: Number(document.getElementById("claim_amount_ugx").value || 0),
+      quorum_present: Number(document.getElementById("quorum_present").value || 5),
+      women_present: Number(document.getElementById("women_present").value || 2),
+      hearing_date: document.getElementById("hearing_date").value.trim(),
+      summary: document.getElementById("summary").value.trim(),
+      created_at: new Date().toISOString().slice(0, 19)
+    };
+
+    const feedback = document.getElementById("submitFeedback");
+
+    if (isOffline()) {
+      const queue = getOfflineQueue();
+      const tempId = "JST-OFF-" + String(Date.now()).slice(-4);
+      const localRecord = {
+        ...payload,
+        case_id: tempId,
+        category_label: document.getElementById("category").selectedOptions[0].text,
+        status: "QUEUED_OFFLINE",
+        jurisdiction_valid: payload.claim_amount_ugx <= 2000000 && payload.quorum_present >= 5 && payload.women_present >= 2 ? 1 : 0,
+        verification_hash: "OFFLINE-" + Math.random().toString(36).substring(2, 8).toUpperCase()
+      };
+      queue.push(localRecord);
+      setOfflineQueue(queue);
+      feedback.innerHTML = `<div class="alert alert-warn"><strong>Saved Offline (${tempId}):</strong> Stored securely on device. Will auto-sync to registry when online.</div>`;
+      e.target.reset();
+      runLiveGuardrailPreview();
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      const c = data.case;
+      const v = data.jurisdiction_verdict;
+
+      if (v.is_valid) {
+        feedback.innerHTML = `<div class="alert alert-ok"><strong>Case Logged (${c.case_id}):</strong> Verification Code <span class="mono">${c.verification_hash}</span>. SMS receipt triggered to ${c.complainant_phone}.</div>`;
+      } else {
+        feedback.innerHTML = `<div class="alert alert-err"><strong>Statutory Referral Issued (${c.case_id}):</strong> Referred to <strong>${v.recommended_referral}</strong>. Verification Code: <span class="mono">${c.verification_hash}</span>.</div>`;
+      }
+      e.target.reset();
+      runLiveGuardrailPreview();
+      loadCases();
+    } catch (err) {
+      feedback.innerHTML = `<div class="alert alert-err">Network error: ${err.message}</div>`;
+    }
+  }
+
+  async function syncOfflineQueue() {
+    const queue = getOfflineQueue();
+    if (queue.length === 0 || isOffline()) return;
+
+    try {
+      const cleanPayload = queue.map(({ case_id, ...rest }) => rest);
+      const res = await fetch("/api/cases/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cases: cleanPayload })
+      });
+      const result = await res.json();
+      setOfflineQueue([]);
+      alert(`Synced ${result.synced_count} offline case(s) to the central JUSTO registry!`);
+      loadCases();
+    } catch (err) {
+      alert("Sync failed: " + err.message);
+    }
+  }
+
+  async function loadCases() {
+    const tbody = document.getElementById("docketBody");
+    const offlineItems = getOfflineQueue();
+
+    if (!isOffline()) {
+      try {
+        const res = await fetch("/api/cases");
+        const serverCases = await res.json();
+        localStorage.setItem(CACHED_CASES_KEY, JSON.stringify(serverCases));
+        allCases = [...offlineItems, ...serverCases];
+      } catch {
+        allCases = [...offlineItems, ...JSON.parse(localStorage.getItem(CACHED_CASES_KEY) || "[]")];
+      }
+    } else {
+      allCases = [...offlineItems, ...JSON.parse(localStorage.getItem(CACHED_CASES_KEY) || "[]")];
+    }
+
+    if (allCases.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6">No cases recorded yet.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = allCases.map(c => {
+      const badgeClass = c.status === "QUEUED_OFFLINE"
+        ? "badge-pending"
+        : (c.jurisdiction_valid ? "badge-valid" : "badge-ref");
+
+      return `
+        <tr>
+          <td>
+            <strong>${c.case_id}</strong><br>
+            <span class="mono" style="font-size:11px; color:#475569;">${c.verification_hash}</span>
+          </td>
+          <td>
+            <strong>${c.complainant_name}</strong> vs <strong>${c.respondent_name}</strong><br>
+            <span style="font-size:12px; color:#475569;">${c.village_court}</span>
+          </td>
+          <td>
+            ${c.category_label}<br>
+            <span style="font-size:12px; color:#475569;">Claim: UGX ${Number(c.claim_amount_ugx || 0).toLocaleString()}</span>
+          </td>
+          <td>${c.quorum_present} total<br><span style="font-size:12px; color:#475569;">(${c.women_present} women)</span></td>
+          <td><span class="badge ${badgeClass}">${c.status}</span></td>
+          <td>
+            <button onclick="openRecordModal('${c.case_id}')">Record / Appeal PDF</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  function openRecordModal(caseId) {
+    const c = allCases.find(item => item.case_id === caseId);
+    if (!c) return;
+    activeRecordCaseId = caseId;
+    document.getElementById("rulingInput").value = c.ruling_notes || "";
+
+    document.getElementById("printableRecord").innerHTML = `
+      <div class="record-header">
+        <div style="font-size:12px; letter-spacing:0.08em; font-weight:700;">REPUBLIC OF UGANDA &bull; LOCAL COUNCIL COURT RECORD</div>
+        <div style="font-size:17px; font-weight:800; margin-top:4px;">${c.village_court}</div>
+        <div style="font-size:12px; color:#334155;">Issued via JUSTO Civic Justice System (Local Council Courts Act, 2006)</div>
+      </div>
+      <p><strong>Case Number:</strong> ${c.case_id} &nbsp;|&nbsp; <strong>Verification Hash:</strong> <span class="mono">${c.verification_hash}</span></p>
+      <p><strong>Complainant:</strong> ${c.complainant_name} (${c.complainant_phone})</p>
+      <p><strong>Respondent:</strong> ${c.respondent_name} (${c.respondent_phone})</p>
+      <p><strong>Matter &amp; Claim:</strong> ${c.category_label} &mdash; UGX ${Number(c.claim_amount_ugx || 0).toLocaleString()}</p>
+      <p><strong>Quorum Verified:</strong> ${c.quorum_present} Members Sitting (Including ${c.women_present} Women)</p>
+      <p><strong>Summary of Claim:</strong> ${c.summary || "N/A"}</p>
+      <p><strong>Status:</strong> ${c.status}</p>
+      <p><strong>Court Ruling / Referral Notes:</strong> ${c.ruling_notes || c.referral_note || "Pending hearing conclusion."}</p>
+      <hr style="border:none; border-top:1px solid #cbd5e1; margin:14px 0;">
+      <div style="font-size:12px; color:#334155;">
+        <strong>Statutory Appeal Notice (Section 32):</strong> Any party dissatisfied with this decision may appeal to the Parish (LC2) Court within <strong>14 days</strong> using Verification Hash <span class="mono">${c.verification_hash}</span>.
+      </div>
+    `;
+    document.getElementById("recordModal").classList.add("open");
+  }
+
+  function closeModal() {
+    document.getElementById("recordModal").classList.remove("open");
+  }
+
+  async function saveRuling(status) {
+    if (!activeRecordCaseId) return;
+    const ruling_notes = document.getElementById("rulingInput").value.trim();
+    if (isOffline()) {
+      alert("Switch back online to save final judgment updates to the central database.");
+      return;
+    }
+    await fetch(`/api/cases/${activeRecordCaseId}/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ruling_notes, status })
+    });
+    await loadCases();
+    openRecordModal(activeRecordCaseId);
+  }
+
+  /* USSD Simulator Logic */
+  async function resetUssd() {
+    ussdHistory = [];
+    document.getElementById("ussdInput").value = "";
+    await callUssdEndpoint("");
+  }
+
+  async function sendUssdStep() {
+    const input = document.getElementById("ussdInput");
+    const val = input.value.trim();
+    if (!val && ussdHistory.length > 0) return;
+    if (val) ussdHistory.push(val);
+    input.value = "";
+    await callUssdEndpoint(ussdHistory.join("*"));
+  }
+
+  async function callUssdEndpoint(textPayload) {
+    const screen = document.getElementById("ussdScreen");
+    try {
+      const formBody = new URLSearchParams({
+        sessionId: "demo-session-001",
+        phoneNumber: "+256772100201",
+        text: textPayload
+      });
+      const res = await fetch("/ussd", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formBody
+      });
+      const reply = await res.text();
+      screen.textContent = reply.replace(/^(CON|END)\s*/, "");
+      if (reply.startsWith("END")) {
+        ussdHistory = [];
+      }
+    } catch (err) {
+      screen.textContent = "USSD connection error. Ensure Flask server is running.";
+    }
+  }
+
+  /* Legal Guide Logic */
+  function quickAsk(q) {
+    document.getElementById("legalQuestion").value = q;
+    askLegalGuide();
+  }
+
+  async function askLegalGuide() {
+    const q = document.getElementById("legalQuestion").value.trim();
+    if (!q) return;
+    const box = document.getElementById("legalAnswerBox");
+    box.innerHTML = `<div class="alert alert-warn">Checking Local Council Courts Act, 2006...</div>`;
+    try {
+      const res = await fetch("/api/legal-guide", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q })
+      });
+      const data = await res.json();
+      box.innerHTML = `<div class="alert alert-ok"><strong>${data.source}:</strong><br>${data.answer}</div>`;
+    } catch (err) {
+      box.innerHTML = `<div class="alert alert-err">Unable to reach Legal Guide API.</div>`;
+    }
+  }
+
+  // Initialize on load
+  updateNetworkUI();
+  loadCases();
+  resetUssd();
+</script>
+</body>
+</html>
