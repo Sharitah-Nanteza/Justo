@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JUSTO — LC1 Court Terminal</title>
+  <style>
+    /* ---------------------------------------------------------------
+       Colours and spacing. Everything is high contrast on purpose:
+       this screen is used in a busy court office, often in daylight.
+       --------------------------------------------------------------- */
+    :root {
+      --ink: #0b1220;
+      --muted: #546179;
+      --line: #cbd5e1;
+      --paper: #ffffff;
+      --wash: #f1f5f9;
+      --navy: #0f172a;
+      --blue: #1d4ed8;
+      --green-bg: #dcfce7;
+      --green-ink: #14532d;
+      --amber-bg: #fef3c7;
+      --amber-ink: #78350f;
+      --red-bg: #fee2e2;
+      --red-ink: #7f1d1d;
+      --blue-bg: #dbeafe;
+      --blue-ink: #1e3a8a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--wash);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
+    /* Shared header - both tabs live under this one banner */
+    header.topbar {
+      background: var(--navy);
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .logo {
+      width: 46px; height: 46px; border-radius: 10px;
+      background: #fff; color: var(--navy);
+      display: grid; place-items: center;
+      font-size: 26px; font-weight: 800;
+    }
+    header.topbar h1 { margin: 0; font-size: 21px; letter-spacing: .3px; }
+    header.topbar h1 span { font-weight: 400; color: #cbd5e1; }
+    header.topbar p { margin: 2px 0 0; font-size: 12px; color: #cbd5e1; }
+    .terminal-badge {
+      border: 1px solid #64748b;
+      border-radius: 999px;
+      padding: 7px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .8px;
+      color: #e2e8f0;
+    }
+    .connectivity {
+      padding: 7px 12px; border-radius: 6px;
+      font-size: 12px; font-weight: 700;
+      background: var(--green-bg); color: var(--green-ink);
+    }
+    .connectivity.offline { background: var(--red-bg); color: var(--red-ink); }
+
+    /* Tabs */
+    nav.tabs {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      padding: 0 32px;
+      display: flex;
+      gap: 8px;
+    }
+    .tab {
+      appearance: none; border: 0; border-bottom: 3px solid transparent;
+      background: transparent; cursor: pointer;
+      padding: 16px 20px; font-size: 14px; font-weight: 700;
+      color: var(--muted);
+    }
+    .tab:hover { color: var(--ink); }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    main { max-width: 1400px; margin: 0 auto; padding: 28px 32px 60px; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Cards and layout */
+    .grid { display: grid; gap: 22px; }
+    .grid.two { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
+    @media (max-width: 1050px) { .grid.two { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 22px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+    }
+    .card h2 { margin: 0 0 4px; font-size: 18px; }
+    .card h3 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+    .sub { margin: 0 0 20px; color: var(--muted); font-size: 13px; }
+
+    label { display: block; font-size: 12px; font-weight: 700; margin: 14px 0 5px; color: #334155; }
+    input, select, textarea {
+      width: 100%; padding: 10px 12px; font-size: 14px; font-family: inherit;
+      border: 1px solid #94a3b8; border-radius: 7px; background: #fff; color: var(--ink);
+    }
+    textarea { min-height: 82px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid #93c5fd; border-color: var(--blue); }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .row.three { grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 620px) { .row, .row.three { grid-template-columns: 1fr; } }
+
+    button {
+      font-family: inherit; cursor: pointer; border-radius: 7px;
+      border: 1px solid var(--navy); padding: 10px 16px;
+      font-size: 13px; font-weight: 700; background: var(--navy); color: #fff;
+    }
+    button:hover:not(:disabled) { background: #1e293b; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button.secondary { background: #fff; color: var(--navy); border-color: #94a3b8; }
+    button.secondary:hover:not(:disabled) { background: var(--wash); }
+    button.blue { background: var(--blue); border-color: var(--blue); }
+    button.blue:hover:not(:disabled) { background: #1e40af; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+
+    /* Guardrail message */
+    .guard { border-radius: 8px; padding: 14px 16px; margin-top: 18px; font-size: 13px; border: 1px solid; }
+    .guard.ok { background: var(--green-bg); border-color:#86efac; color: var(--green-ink); }
+    .guard.bad { background: var(--red-bg); border-color:#fca5a5; color: var(--red-ink); }
+    .guard strong { display: block; font-size: 14px; margin-bottom: 5px; }
+    .guard ul { margin: 8px 0 0; padding-left: 18px; }
+    .guard .referral { margin-top: 8px; font-weight: 700; }
+
+    /* Stats */
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+    @media (max-width: 800px) { .stats { grid-template-columns: 1fr 1fr; } }
+    .stat { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+    .stat b { display: block; font-size: 26px; line-height: 1.2; }
+    .stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; font-weight: 700; }
+
+    /* Tables */
+    .tablewrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      text-align: left; padding: 10px 12px; background: var(--wash);
+      color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 1px solid var(--line); white-space: nowrap;
+    }
+    td { padding: 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+    tr.case-row { cursor: pointer; }
+    tr.case-row:hover { background: #f8fafc; }
+    tr.selected { background: #eff6ff; }
+    .hash { font-family: ui-monospace, Consolas, monospace; font-size: 12px; font-weight: 700; }
+
+    .badge { display: inline-block; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .badge.scheduled { background: var(--amber-bg); color: var(--amber-ink); }
+    .badge.resolved { background: var(--green-bg); color: var(--green-ink); }
+    .badge.referred { background: var(--red-bg); color: var(--red-ink); }
+    .badge.appealed { background: var(--blue-bg); color: var(--blue-ink); }
+
+    .filters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .filters input, .filters select { width: auto; min-width: 190px; }
+    .muted { color: var(--muted); font-size: 13px; }
+
+    /* Messages */
+    .thread { max-height: 330px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #f8fafc; }
+    .msg { margin-bottom: 12px; padding: 10px 12px; border-radius: 8px; background: #fff; border: 1px solid var(--line); }
+    .msg.court { border-left: 4px solid var(--blue); }
+    .msg.citizen { border-left: 4px solid #64748b; }
+    .msg .who { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--muted); }
+    .msg .body { font-size: 14px; margin-top: 3px; }
+    .msg .when { font-size: 11px; color: #94a3b8; margin-top: 5px; }
+
+    .banner { padding: 12px 14px; border-radius: 8px; font-size: 13px; margin-top: 14px; border: 1px solid; }
+    .banner.locked { background: var(--red-bg); border-color:#fca5a5; color: var(--red-ink); }
+    .banner.unlocked { background: var(--green-bg); border-color:#86efac; color: var(--green-ink); }
+    .error { color: var(--red-ink); font-size: 13px; margin-top: 10px; font-weight: 700; }
+
+    /* Toast */
+    #toast {
+      position: fixed; right: 24px; bottom: 24px; max-width: 380px;
+      background: var(--navy); color: #fff; padding: 14px 18px;
+      border-radius: 9px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.2);
+      display: none; z-index: 50;
+    }
+    #toast.show { display: block; }
+    #toast.error { background: #7f1d1d; }
+
+    /* The printed record is hidden on screen and revealed only by Print */
+    #printArea { display: none; }
+    @media print {
+      body > header, body > nav, body > main, body > #toast { display: none !important; }
+      body { background: #fff; }
+      #printArea { display: block !important; padding: 24px; color: #000; }
+      #printArea h1 { font-size: 22px; margin: 0 0 4px; }
+      #printArea h2 { font-size: 16px; margin: 22px 0 8px; border-bottom: 1px solid #000; padding-bottom: 4px; }
+      #printArea table { width: 100%; border-collapse: collapse; }
+      #printArea td { padding: 7px 8px; border: 1px solid #999; font-size: 13px; }
+      #printArea td:first-child { font-weight: 700; width: 32%; }
+      #printArea .code { font-family: ui-monospace, Consolas, monospace; font-size: 18px; font-weight: 800; letter-spacing: 1px; }
+      #printArea .sign { margin-top: 50px; border-top: 1px solid #000; padding-top: 8px; width: 55%; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">J</div>
+      <div>
+        <h1>JUSTO <span>— LC1 Court Terminal</span></h1>
+        <p>Local Council Courts Act, 2006 · Shared court device · Secretary &amp; Chairperson</p>
+      </div>
+    </div>
+    <div class="terminal-badge">COURT SIDE — NOT FOR CITIZENS</div>
+    <div id="connectivity" class="connectivity">CHECKING CONNECTION…</div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="secretary">1 · Secretary — Intake</button>
+    <button class="tab" data-tab="chairperson">2 · Chairperson — Bench &amp; Rulings</button>
+  </nav>
+
+  <main>
+    <!-- ======================= SECRETARY TAB ======================= -->
+    <section id="secretary" class="panel active">
+      <div class="grid two">
+        <div class="card">
+          <h2>Register a dispute</h2>
+          <p class="sub">The statutory checks run as you type. A matter outside LC1 power cannot be registered here.</p>
+
+          <label for="villageCourt">Village court</label>
+          <input id="villageCourt" value="Ntinda II Village LC1 Court, Nakawa" />
+
+          <div class="row">
+            <div>
+              <label for="complainantName">Complainant name</label>
+              <input id="complainantName" placeholder="e.g. Namukasa Sarah" />
+            </div>
+            <div>
+              <label for="complainantPhone">Complainant phone</label>
+              <input id="complainantPhone" placeholder="+2567…" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label for="respondentName">Respondent name</label>
+              <input id="respondentName" placeholder="e.g. Okello Patrick" />
+            </div>
+            <div>
+              <label for="respondentPhone">Respondent phone</label>
+              <input id="respondentPhone" placeholder="+2567…" />
+            </div>
+          </div>
+
+          <label for="category">Dispute category</label>
+          <select id="category"></select>
+
+          <div class="row three">
+            <div>
+              <label for="claim">Claim (UGX)</label>
+              <input id="claim" type="number" min="0" step="1000" value="150000" />
+            </div>
+            <div>
+              <label for="members">Members present</label>
+              <input id="members" type="number" min="0" value="5" />
+            </div>
+            <div>
+              <label for="women">Women present</label>
+              <input id="women" type="number" min="0" value="2" />
+            </div>
+          </div>
+
+          <label for="summary">Summary of dispute</label>
+          <textarea id="summary" placeholder="What happened? Keep it short and factual."></textarea>
+
+          <label for="hearingDate">Hearing date and time</label>
+          <input id="hearingDate" type="text" placeholder="2026-11-28 10:00" />
+
+          <div id="guardrail" class="guard ok"></div>
+
+          <div class="actions">
+            <button id="registerBtn" class="blue">Register case &amp; send SMS receipt</button>
+            <label style="margin:0; display:flex; align-items:center; gap:8px; font-weight:600;">
+              <input id="offlineToggle" type="checkbox" style="width:auto;" /> Simulate offline
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <h2>Last receipt</h2>
+            <p class="sub">Shown after a case is registered or synced.</p>
+            <div id="receipt" class="muted">No case registered in this session yet.</div>
+          </div>
+
+          <div class="card" style="margin-top:22px;">
+            <h2>Offline queue</h2>
+            <p class="sub">Cases typed while offline are kept in this browser until the network returns.</p>
+            <div id="queueList" class="muted">No queued cases.</div>
+            <div class="actions">
+              <button id="syncBtn" class="secondary" disabled>Sync queued cases now</button>
+              <span class="muted">Queued: <b id="queueCount">0</b></span>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:22px;">
+            <h3>Statutory guardrails</h3>
+            <div class="muted" style="font-size:13px;">
+              <p><b>Money:</b> maximum UGX 2,000,000.</p>
+              <p><b>Bench:</b> at least 5 members, including at least 2 women.</p>
+              <p><b>Referred out:</b> criminal matters → Uganda Police Force; registered land → Chief Magistrate's Court; statutory divorce/custody → Family and Children Court.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== CHAIRPERSON TAB ===================== -->
+    <section id="chairperson" class="panel">
+      <div class="stats">
+        <div class="stat"><b id="statTotal">0</b><span>Total cases</span></div>
+        <div class="stat"><b id="statScheduled">0</b><span>Hearings scheduled</span></div>
+        <div class="stat"><b id="statResolved">0</b><span>Resolved by consent</span></div>
+        <div class="stat"><b id="statReferred">0</b><span>Referred out</span></div>
+      </div>
+
+      <div class="card">
+        <h2>Live docket</h2>
+        <p class="sub">Includes cases filed by citizens on their phones. Refreshes automatically every 10 seconds.</p>
+        <div class="filters">
+          <input id="search" type="search" placeholder="Search case ID, party or village…" />
+          <select id="statusFilter">
+            <option value="">All statuses</option>
+            <option value="HEARING_SCHEDULED">HEARING_SCHEDULED</option>
+            <option value="RESOLVED_CONSENT">RESOLVED_CONSENT</option>
+            <option value="REFERRED_OUT_OF_JURISDICTION">REFERRED_OUT_OF_JURISDICTION</option>
+            <option value="APPEALED_TO_LC2">APPEALED_TO_LC2</option>
+          </select>
+          <button id="refreshBtn" class="secondary">Refresh now</button>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Case ID</th><th>Parties</th><th>Category</th><th>Claim</th><th>Bench</th><th>Status</th><th>Verify code</th></tr>
+            </thead>
+            <tbody id="docketBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid two" style="margin-top:22px;">
+        <div class="card">
+          <h2>Ruling &amp; certified record</h2>
+          <p class="sub" id="detailHint">Select a case in the docket above.</p>
+          <input id="detailCaseId" type="hidden" />
+
+          <div class="row">
+            <div>
+              <label for="detailMembers">Members on the bench</label>
+              <input id="detailMembers" type="number" min="0" value="5" />
+            </div>
+            <div>
+              <label for="detailWomen">Women on the bench</label>
+              <input id="detailWomen" type="number" min="0" value="2" />
+            </div>
+          </div>
+
+          <div id="quorumBanner" class="banner unlocked"></div>
+
+          <label for="detailStatus">Status</label>
+          <select id="detailStatus">
+            <option value="HEARING_SCHEDULED">HEARING_SCHEDULED</option>
+            <option value="RESOLVED_CONSENT">RESOLVED_CONSENT</option>
+            <option value="REFERRED_OUT_OF_JURISDICTION">REFERRED_OUT_OF_JURISDICTION</option>
+            <option value="APPEALED_TO_LC2">APPEALED_TO_LC2</option>
+          </select>
+
+          <label for="detailNotes">Ruling notes</label>
+          <textarea id="detailNotes" placeholder="Decision, order or referral notes…"></textarea>
+
+          <div id="referralNote" class="muted" style="margin-top:10px;"></div>
+          <div id="rulingError" class="error"></div>
+
+          <div class="actions">
+            <button id="saveRulingBtn" class="blue">Save ruling / status</button>
+            <button id="printCertBtn" class="secondary" disabled>Print Certified Court Record</button>
+            <button id="printAppealBtn" class="secondary" disabled>Print 14-Day Appeal Extract</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Citizen messages</h2>
+          <p class="sub">Reply to a citizen and an SMS alert is sent to their phone.</p>
+          <label for="messageFilter">Show thread for</label>
+          <select id="messageFilter"><option value="">All cases</option></select>
+          <div id="thread" class="thread" style="margin-top:14px;"></div>
+
+          <label for="replyCase">Case ID to reply to</label>
+          <input id="replyCase" placeholder="JST-2026-001" />
+          <label for="replyBody">Your reply</label>
+          <textarea id="replyBody" placeholder="Type the court's reply…"></textarea>
+          <div class="actions">
+            <button id="sendReplyBtn">Send reply + SMS</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+  <div id="printArea"></div>
+
+  <script>
+    /* ===============================================================
+       Small helpers
+       =============================================================== */
+    const $ = (selector) => document.querySelector(selector);
+    const state = { meta: null, cases: [], selected: null };
+    const QUEUE_KEY = 'justo_offline_cases';
+
+    function esc(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+      });
+    }
+
+    async function api(path, options) {
+      const response = await fetch(path, options);
+      const data = await response.json().catch(function () { return {}; });
+      if (!response.ok) throw new Error(data.error || ('Request failed: ' + response.status));
+      return data;
+    }
+
+    function money(value) { return 'UGX ' + Number(value || 0).toLocaleString('en-UG'); }
+
+    function badgeClass(status) {
+      if (status === 'RESOLVED_CONSENT') return 'resolved';
+      if (status === 'REFERRED_OUT_OF_JURISDICTION') return 'referred';
+      if (status === 'APPEALED_TO_LC2') return 'appealed';
+      return 'scheduled';
+    }
+
+    let toastTimer = null;
+    function toast(message, isError) {
+      const box = $('#toast');
+      box.textContent = message;
+      box.className = 'show' + (isError ? ' error' : '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { box.className = ''; }, 4500);
+    }
+
+    /* ===============================================================
+       Secretary: rules, registration and offline queue
+       =============================================================== */
+
+    async function loadMeta() {
+      state.meta = await api('/api/meta');
+      const select = $('#category');
+      select.innerHTML = '';
+
+      const allowed = document.createElement('optgroup');
+      allowed.label = 'Heard at LC1';
+      Object.keys(state.meta.allowed_categories).forEach(function (key) {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = state.meta.allowed_categories[key];
+        allowed.appendChild(option);
+      });
+      select.appendChild(allowed);
+
+      const blocked = document.createElement('optgroup');
+      blocked.label = 'Outside LC1 power — blocked';
+      Object.keys(state.meta.prohibited_categories).forEach(function (key) {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = state.meta.prohibited_categories[key].label;
+        blocked.appendChild(option);
+      });
+      select.appendChild(blocked);
+
+      checkGuardrails();
+    }
+
+    // This mirrors the server rules so the Secretary sees problems instantly.
+    function checkRules(category, claim, members, women) {
+      const issues = [];
+      let referral = null;
+      const prohibited = state.meta.prohibited_categories[category];
+
+      if (prohibited) {
+        issues.push('Wrong court: ' + prohibited.reason);
+        referral = prohibited.referral;
+      }
+      if (claim > state.meta.monetary_limit_ugx) {
+        issues.push('Money limit: ' + money(claim) + ' is above the LC limit of ' + money(state.meta.monetary_limit_ugx) + '.');
+        if (!referral) referral = "Chief Magistrate's Court (Small Claims Registry)";
+      }
+      if (members < state.meta.quorum_min_members || women < state.meta.quorum_min_women) {
+        issues.push('Quorum: ' + members + ' members (' + women + ' women). The law requires at least ' +
+          state.meta.quorum_min_members + ' members including ' + state.meta.quorum_min_women + ' women.');
+        if (!referral) referral = 'Adjourn until a lawful bench sits (5 members, at least 2 women).';
+      }
+      return { ok: issues.length === 0, issues: issues, referral: referral };
+    }
+
+    function checkGuardrails() {
+      if (!state.meta) return;
+      const result = checkRules(
+        $('#category').value,
+        Number($('#claim').value) || 0,
+        Number($('#members').value) || 0,
+        Number($('#women').value) || 0
+      );
+      const box = $('#guardrail');
+      if (result.ok) {
+        box.className = 'guard ok';
+        box.innerHTML = '<strong>VALID — LC1 may hear this matter</strong>All statutory checks passed. You can register it.';
+      } else {
+        box.className = 'guard bad';
+        box.innerHTML = '<strong>BLOCKED — do not register at LC1</strong><ul>' +
+          result.issues.map(function (issue) { return '<li>' + esc(issue) + '</li>'; }).join('') +
+          '</ul><div class="referral">Refer to: ' + esc(result.referral) + '</div>';
+      }
+      $('#registerBtn').disabled = !result.ok;
+    }
+
+    function isOffline() { return $('#offlineToggle').checked || !navigator.onLine; }
+
+    function updateConnectivity() {
+      const offline = isOffline();
+      const badge = $('#connectivity');
+      badge.textContent = offline ? 'OFFLINE — QUEUING LOCALLY' : 'ONLINE — LIVE';
+      badge.className = 'connectivity' + (offline ? ' offline' : '');
+      renderQueue();
+    }
+
+    function getQueue() {
+      try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); }
+      catch (error) { return []; }
+    }
+
+    function renderQueue() {
+      const queue = getQueue();
+      $('#queueCount').textContent = queue.length;
+      $('#syncBtn').disabled = queue.length === 0 || isOffline();
+      $('#queueList').innerHTML = queue.length
+        ? queue.map(function (item) {
+            return '<div class="msg citizen"><div class="who">' + esc(item.local_ref) + '</div>' +
+              '<div class="body">' + esc(item.complainant_name) + ' — ' + esc(item.category_label) + '</div></div>';
+          }).join('')
+        : '<p class="muted">No queued cases.</p>';
+    }
+
+    function formPayload() {
+      return {
+        village_court: $('#villageCourt').value.trim(),
+        complainant_name: $('#complainantName').value.trim(),
+        complainant_phone: $('#complainantPhone').value.trim(),
+        respondent_name: $('#respondentName').value.trim(),
+        respondent_phone: $('#respondentPhone').value.trim(),
+        category: $('#category').value,
+        category_label: $('#category').options[$('#category').selectedIndex].text,
+        claim_amount_ugx: Number($('#claim').value) || 0,
+        quorum_present: Number($('#members').value) || 0,
+        women_present: Number($('#women').value) || 0,
+        summary: $('#summary').value.trim(),
+        hearing_date: $('#hearingDate').value.trim() || '2026-11-28 10:00',
+        created_at: new Date().toISOString().slice(0, 19)
+      };
+    }
+
+    function showReceipt(caseData, sms) {
+      $('#receipt').innerHTML =
+        '<p><b>Case ID:</b> ' + esc(caseData.case_id) + '</p>' +
+        '<p><b>Verification code:</b> <span class="hash">' + esc(caseData.verification_hash) + '</span></p>' +
+        '<p><b>Status:</b> <span class="badge ' + badgeClass(caseData.status) + '">' + esc(caseData.status) + '</span></p>' +
+        '<p><b>SMS:</b> ' + esc(sms ? sms.provider : 'none') + '</p>';
+    }
+
+    async function registerCase() {
+      const payload = formPayload();
+
+      if (isOffline()) {
+        payload.local_ref = 'OFFLINE-' + Date.now();
+        const queue = getQueue();
+        queue.push(payload);
+        localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        renderQueue();
+        toast('Saved offline. Sync when the connection returns.');
+        return;
+      }
+
+      try {
+        const result = await api('/api/cases', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        showReceipt(result.case, result.sms_status);
+        toast('Case ' + result.case.case_id + ' registered. SMS receipt sent.');
+        await loadCases();
+      } catch (error) { toast(error.message, true); }
+    }
+
+    async function syncQueue() {
+      const queue = getQueue();
+      if (!queue.length || isOffline()) return;
+      try {
+        const result = await api('/api/cases/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cases: queue })
+        });
+        localStorage.removeItem(QUEUE_KEY);
+        renderQueue();
+        await loadCases();
+        // Show the real records and hashes that the server just assigned.
+        const syncedRecords = state.cases.filter(function (c) {
+          return result.synced_ids.indexOf(c.case_id) !== -1;
+        });
+        $('#receipt').innerHTML = '<b>Synced ' + result.synced_count + ' offline case(s):</b>' +
+          (syncedRecords.length ? syncedRecords.map(function (c) {
+            return '<div class="msg court"><div class="who">' + esc(c.case_id) +
+              ' · <span class="badge ' + badgeClass(c.status) + '">' + esc(c.status) + '</span></div>' +
+              '<div class="body">' + esc(c.complainant_name) + ' vs ' + esc(c.respondent_name) +
+              '<br>Verify code: <span class="hash">' + esc(c.verification_hash) + '</span></div></div>';
+          }).join('') : '<p class="muted">No records found.</p>');
+        toast('Synced ' + result.synced_count + ' offline case(s).');
+      } catch (error) { toast(error.message, true); }
+    }
+
+    /* ===============================================================
+       Chairperson: docket, quorum lock, rulings, printing, messages
+       =============================================================== */
+
+    async function loadCases() {
+      const cases = await api('/api/cases');
+      state.cases = cases;
+
+      $('#statTotal').textContent = cases.length;
+      $('#statScheduled').textContent = cases.filter(function (c) { return c.status === 'HEARING_SCHEDULED'; }).length;
+      $('#statResolved').textContent = cases.filter(function (c) { return c.status === 'RESOLVED_CONSENT'; }).length;
+      $('#statReferred').textContent = cases.filter(function (c) { return c.status === 'REFERRED_OUT_OF_JURISDICTION'; }).length;
+
+      const search = $('#search').value.trim().toLowerCase();
+      const status = $('#statusFilter').value;
+      const shown = cases.filter(function (c) {
+        const haystack = [c.case_id, c.complainant_name, c.respondent_name, c.village_court, c.category_label].join(' ').toLowerCase();
+        return (!status || c.status === status) && (!search || haystack.includes(search));
+      });
+
+      $('#docketBody').innerHTML = shown.length ? shown.map(function (c) {
+        return '<tr class="case-row' + (state.selected === c.case_id ? ' selected' : '') + '" data-id="' + esc(c.case_id) + '">' +
+          '<td><b>' + esc(c.case_id) + '</b></td>' +
+          '<td>' + esc(c.complainant_name) + ' vs ' + esc(c.respondent_name) + '</td>' +
+          '<td>' + esc(c.category_label) + '</td>' +
+          '<td>' + money(c.claim_amount_ugx) + '</td>' +
+          '<td>' + esc(c.quorum_present) + ' (' + esc(c.women_present) + ' women)</td>' +
+          '<td><span class="badge ' + badgeClass(c.status) + '">' + esc(c.status) + '</span></td>' +
+          '<td class="hash">' + esc(c.verification_hash) + '</td></tr>';
+      }).join('') : '<tr><td colspan="7" class="muted">No cases match this filter.</td></tr>';
+
+      // Keep the message-thread case list in sync with the docket.
+      const filter = $('#messageFilter');
+      const current = filter.value;
+      filter.innerHTML = '<option value="">All cases</option>' + cases.map(function (c) {
+        return '<option value="' + esc(c.case_id) + '">' + esc(c.case_id) + '</option>';
+      }).join('');
+      filter.value = current;
+
+      if (state.selected) {
+        const fresh = cases.find(function (c) { return c.case_id === state.selected; });
+        if (fresh) fillDetail(fresh);
+      }
+    }
+
+    function fillDetail(caseData) {
+      $('#detailCaseId').value = caseData.case_id;
+      $('#detailHint').textContent = caseData.village_court + ' · ' + caseData.complainant_name + ' vs ' + caseData.respondent_name + ' · ' + money(caseData.claim_amount_ugx);
+      $('#detailMembers').value = caseData.quorum_present;
+      $('#detailWomen').value = caseData.women_present;
+      $('#detailStatus').value = caseData.status;
+      $('#detailNotes').value = caseData.ruling_notes || '';
+      $('#referralNote').textContent = caseData.referral_note ? ('Referral / issue: ' + caseData.referral_note) : 'Within LC1 jurisdiction — no referral recorded.';
+      $('#printCertBtn').disabled = false;
+      $('#printAppealBtn').disabled = false;
+      $('#messageFilter').value = caseData.case_id;
+      $('#replyCase').value = caseData.case_id;
+      $('#rulingError').textContent = '';
+      updateQuorumLock();
+      loadMessages(caseData.case_id);
+    }
+
+    function updateQuorumLock() {
+      const members = Number($('#detailMembers').value) || 0;
+      const women = Number($('#detailWomen').value) || 0;
+      const status = $('#detailStatus').value;
+      const needsBench = status === 'RESOLVED_CONSENT' || status === 'HEARING_SCHEDULED';
+      const lawful = members >= 5 && women >= 2;
+      const banner = $('#quorumBanner');
+      banner.className = 'banner ' + (lawful ? 'unlocked' : 'locked');
+      banner.textContent = lawful
+        ? 'Quorum OK: ' + members + ' members, ' + women + ' women. A binding ruling may be recorded.'
+        : 'QUORUM LOCK: ' + members + ' members, ' + women + ' women. Need at least 5 members including 2 women.';
+      $('#saveRulingBtn').disabled = needsBench && !lawful;
+    }
+
+    async function saveRuling() {
+      const caseId = $('#detailCaseId').value;
+      if (!caseId) return;
+      $('#rulingError').textContent = '';
+      try {
+        await api('/api/cases/' + encodeURIComponent(caseId) + '/resolve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: $('#detailStatus').value,
+            ruling_notes: $('#detailNotes').value,
+            quorum_present: Number($('#detailMembers').value) || 0,
+            women_present: Number($('#detailWomen').value) || 0
+          })
+        });
+        toast('Ruling saved for ' + caseId + '. SMS update sent.');
+        await loadCases();
+        await loadMessages($('#messageFilter').value);
+      } catch (error) { $('#rulingError').textContent = error.message; }
+    }
+
+    function currentCase() {
+      return state.cases.find(function (c) { return c.case_id === $('#detailCaseId').value; }) || null;
+    }
+
+    function printDocument(kind) {
+      const c = currentCase();
+      if (!c) return;
+      const code = c.verification_hash;
+      let html = '<h1>JUSTO — Local Council Court</h1><p>' + esc(c.village_court) + '</p>';
+      const rows = [
+        ['Case ID', c.case_id],
+        ['Complainant', c.complainant_name + ' (' + c.complainant_phone + ')'],
+        ['Respondent', c.respondent_name + ' (' + c.respondent_phone + ')'],
+        ['Category', c.category_label],
+        ['Claim', money(c.claim_amount_ugx)],
+        ['Bench', c.quorum_present + ' members, ' + c.women_present + ' women'],
+        ['Status', c.status],
+        ['Recorded', c.created_at]
+      ];
+      if (kind === 'record') {
+        html += '<h2>Certified Court Record</h2><table>' + rows.map(function (r) {
+          return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+        }).join('') + '</table>';
+        html += '<h2>Summary and ruling</h2><p>' + esc(c.summary) + '</p><p>' + esc(c.ruling_notes || 'No ruling notes recorded.') + '</p>';
+        html += '<h2>Verification</h2><p class="code">' + esc(code) + '</p>';
+        html += '<p>This is a certified true copy of the court record. Check the code in the citizen app or by dialling *384*2026#.</p>';
+        html += '<div class="sign">Chairperson signature: ____________________<br>Date: __________________</div>';
+      } else {
+        html += '<h2>14-Day Appeal Extract</h2><p>Judgment in case <b>' + esc(c.case_id) + '</b> was recorded on ' + esc(c.created_at) + '.</p>';
+        html += '<p>Under Section 32 of the Local Council Courts Act, 2006, a party dissatisfied with this decision has <b>14 days</b> from the date of judgment to appeal to the Parish (LC2) Court, and thereafter to the Chief Magistrate\'s Court using this certified record.</p>';
+        html += '<table><tr><td>Parties</td><td>' + esc(c.complainant_name) + ' vs ' + esc(c.respondent_name) + '</td></tr>' +
+          '<tr><td>Status</td><td>' + esc(c.status) + '</td></tr>' +
+          '<tr><td>Verification code</td><td class="code">' + esc(code) + '</td></tr></table>';
+        html += '<p>Quote this code at every appeal stage.</p>';
+      }
+      $('#printArea').innerHTML = html;
+      window.print();
+    }
+
+    async function loadMessages(caseId) {
+      const path = '/api/messages' + (caseId ? '?case_id=' + encodeURIComponent(caseId) : '');
+      const messages = await api(path);
+      $('#thread').innerHTML = messages.length ? messages.map(function (m) {
+        return '<div class="msg ' + (m.sender_role === 'COURT' ? 'court' : 'citizen') + '">' +
+          '<div class="who">' + esc(m.sender_role) + ' · ' + esc(m.sender_name) + '</div>' +
+          '<div class="body">' + esc(m.body) + '</div>' +
+          '<div class="when">' + esc(m.case_id) + ' · ' + esc(m.created_at) + '</div></div>';
+      }).join('') : '<p class="muted">No messages for this selection.</p>';
+    }
+
+    async function sendReply() {
+      const body = $('#replyBody').value.trim();
+      const caseId = $('#replyCase').value.trim() || 'GENERAL';
+      if (!body) { toast('Type a reply first.', true); return; }
+      try {
+        await api('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            case_id: caseId,
+            sender_role: 'COURT',
+            sender_name: 'LC1 Chairperson',
+            body: body
+          })
+        });
+        $('#replyBody').value = '';
+        await loadMessages($('#messageFilter').value);
+        toast('Reply sent. Citizen will get an SMS alert.');
+      } catch (error) { toast(error.message, true); }
+    }
+
+    /* ===============================================================
+       Wire everything up
+       =============================================================== */
+    function bindEvents() {
+      document.querySelectorAll('.tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+          document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
+          tab.classList.add('active');
+          $('#' + tab.dataset.tab).classList.add('active');
+        });
+      });
+
+      ['category', 'claim', 'members', 'women'].forEach(function (id) {
+        document.getElementById(id).addEventListener('input', checkGuardrails);
+      });
+      $('#offlineToggle').addEventListener('change', updateConnectivity);
+      $('#registerBtn').addEventListener('click', registerCase);
+      $('#syncBtn').addEventListener('click', syncQueue);
+      window.addEventListener('online', updateConnectivity);
+      window.addEventListener('offline', updateConnectivity);
+
+      $('#search').addEventListener('input', loadCases);
+      $('#statusFilter').addEventListener('change', loadCases);
+      $('#refreshBtn').addEventListener('click', function () { loadCases().then(function () { return loadMessages($('#messageFilter').value); }); });
+      $('#docketBody').addEventListener('click', function (event) {
+        const row = event.target.closest('tr.case-row');
+        if (!row) return;
+        state.selected = row.dataset.id;
+        const found = state.cases.find(function (c) { return c.case_id === state.selected; });
+        if (found) fillDetail(found);
+        loadCases();
+      });
+
+      ['detailMembers', 'detailWomen', 'detailStatus'].forEach(function (id) {
+        document.getElementById(id).addEventListener('input', updateQuorumLock);
+      });
+      $('#saveRulingBtn').addEventListener('click', saveRuling);
+      $('#printCertBtn').addEventListener('click', function () { printDocument('record'); });
+      $('#printAppealBtn').addEventListener('click', function () { printDocument('appeal'); });
+
+      $('#messageFilter').addEventListener('change', function () { loadMessages($('#messageFilter').value); });
+      $('#sendReplyBtn').addEventListener('click', sendReply);
+    }
+
+    async function init() {
+      bindEvents();
+      await loadMeta();
+      updateConnectivity();
+      await loadCases();
+      await loadMessages('');
+      // Short polling so the two browser windows stay in step.
+      setInterval(async function () {
+        if (document.visibilityState !== 'visible') return;
+        await loadCases();
+        await loadMessages($('#messageFilter').value);
+      }, 10000);
+    }
+
+    init().catch(function (error) { toast('Could not load the court terminal: ' + error.message, true); });
+  </script>
+</body>
+</html>

@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JUSTO — Citizen App</title>
+  <style>
+    /* ---------------------------------------------------------------
+       A phone-shaped app. On a laptop it is centred in a phone frame;
+       on an actual phone it fills the screen edge to edge.
+       --------------------------------------------------------------- */
+    :root {
+      --ink: #0b1220;
+      --muted: #5a677d;
+      --line: #d5dce6;
+      --paper: #ffffff;
+      --wash: #f6f8fb;
+      --navy: #0f172a;
+      --blue: #1d4ed8;
+      --green-bg: #dcfce7;
+      --green-ink: #14532d;
+      --amber-bg: #fef3c7;
+      --amber-ink: #78350f;
+      --red-bg: #fee2e2;
+      --red-ink: #7f1d1d;
+      --blue-bg: #dbeafe;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #dfe6ef;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--ink);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px 12px;
+    }
+
+    .phone {
+      width: 100%;
+      max-width: 420px;
+      height: min(850px, calc(100vh - 40px));
+      background: var(--paper);
+      border: 8px solid var(--navy);
+      border-radius: 30px;
+      box-shadow: 0 18px 50px rgba(15, 23, 42, .25);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .statusbar {
+      background: var(--navy);
+      color: #cbd5e1;
+      display: flex;
+      justify-content: space-between;
+      padding: 7px 18px 2px;
+      font-size: 10px;
+      letter-spacing: .5px;
+    }
+    .statusbar b { color: #fff; letter-spacing: 1px; }
+
+    .app-header {
+      background: var(--navy);
+      color: #fff;
+      padding: 8px 18px 18px;
+    }
+    .app-header h1 { margin: 0; font-size: 22px; letter-spacing: .3px; }
+    .app-header p { margin: 3px 0 0; font-size: 11px; color: #cbd5e1; }
+
+    .app-body {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--wash);
+      padding: 14px 14px 24px;
+    }
+
+    .sheet {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    h2 { margin: 0 0 4px; font-size: 18px; }
+    .lead { margin: 0 0 14px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    label { display: block; font-size: 11px; font-weight: 800; margin: 12px 0 5px; color: #334155; }
+    input, select, textarea {
+      width: 100%; min-height: 44px; padding: 10px 12px;
+      font-size: 15px; font-family: inherit;
+      border: 1px solid #94a3b8; border-radius: 9px; background: #fff; color: var(--ink);
+    }
+    textarea { min-height: 76px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid #93c5fd; border-color: var(--blue); }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    button {
+      font-family: inherit; cursor: pointer; border-radius: 9px;
+      border: 1px solid var(--navy); padding: 11px 14px; min-height: 44px;
+      font-size: 13px; font-weight: 800; background: var(--navy); color: #fff;
+    }
+    button:hover:not(:disabled) { background: #1e293b; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button.blue { background: var(--blue); border-color: var(--blue); }
+    button.blue:hover:not(:disabled) { background: #1e40af; }
+    button.ghost { background: #fff; color: var(--navy); border-color: #94a3b8; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .actions button { flex: 1 1 auto; }
+
+    .notice { border-radius: 9px; padding: 12px 13px; font-size: 12px; border: 1px solid; margin-top: 12px; }
+    .notice.ok { background: var(--green-bg); border-color: #86efac; color: var(--green-ink); }
+    .notice.bad { background: var(--red-bg); border-color: #fca5a5; color: var(--red-ink); }
+    .notice.info { background: var(--blue-bg); border-color: #93c5fd; color: #1e3a8a; }
+    .notice b { display: block; font-size: 13px; margin-bottom: 4px; }
+
+    .code { font-family: ui-monospace, Consolas, monospace; font-weight: 800; letter-spacing: 1px; }
+    .pill { display: inline-block; padding: 4px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; }
+    .pill.scheduled { background: var(--amber-bg); color: var(--amber-ink); }
+    .pill.resolved { background: var(--green-bg); color: var(--green-ink); }
+    .pill.referred { background: var(--red-bg); color: var(--red-ink); }
+    .pill.appealed { background: var(--blue-bg); color: var(--blue-ink); }
+
+    /* Chat bubbles */
+    .thread { max-height: 330px; overflow-y: auto; padding: 4px 2px 8px; }
+    .bubble { max-width: 84%; padding: 10px 12px; border-radius: 14px; font-size: 14px; margin: 8px 0; }
+    .bubble.citizen { background: #e2e8f0; margin-left: auto; border-bottom-right-radius: 4px; }
+    .bubble.court { background: var(--blue-bg); border-bottom-left-radius: 4px; }
+    .bubble .who { display: block; font-size: 10px; font-weight: 800; color: #475569; margin-bottom: 3px; }
+    .bubble .when { display: block; font-size: 10px; color: #94a3b8; margin-top: 5px; }
+
+    /* USSD simulator */
+    .ussd-phone { background: #0b1720; color: #b7f7c2; border-radius: 12px; padding: 14px; font-family: ui-monospace, Consolas, monospace; font-size: 13px; line-height: 1.6; min-height: 190px; white-space: pre-wrap; word-break: break-word; }
+    .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 12px; }
+    .keypad button { background: #fff; color: var(--ink); border-color: var(--line); font-size: 17px; }
+    .keypad button:hover:not(:disabled) { background: var(--wash); }
+
+    /* Bottom navigation */
+    nav.tabbar {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      border-top: 1px solid var(--line); background: #fff;
+    }
+    nav.tabbar button {
+      border: 0; border-radius: 0; background: #fff; color: var(--muted);
+      padding: 9px 2px 11px; min-height: 58px; font-size: 10px; font-weight: 800;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+    nav.tabbar button .icon { font-size: 19px; line-height: 1; }
+    nav.tabbar button.active { color: var(--blue); background: #eff6ff; box-shadow: inset 0 3px 0 var(--blue); }
+
+    #toast {
+      position: absolute; left: 14px; right: 14px; bottom: 68px;
+      background: var(--navy); color: #fff; padding: 11px 14px; border-radius: 9px;
+      font-size: 12px; display: none; z-index: 20;
+    }
+    #toast.show { display: block; }
+    #toast.error { background: #7f1d1d; }
+
+    @media (max-width: 520px) {
+      body { padding: 0; align-items: stretch; }
+      .phone { border: 0; border-radius: 0; max-width: none; height: 100vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <div class="statusbar"><span><b>JUSTO</b> · Citizen services</span><span>USSD *384*2026#</span></div>
+    <div class="app-header">
+      <h1>JUSTO</h1>
+      <p>Access to justice · Your village LC1 court</p>
+    </div>
+
+    <div class="app-body">
+      <!-- ============ 1. TALK TO THE COURT ============ -->
+      <section class="screen active" id="screen-chat">
+        <div class="sheet">
+          <h2>Talk to the Court</h2>
+          <p class="lead">Send a message about your case and read the court's reply here. You will also get an SMS.</p>
+          <label for="chatName">Your name</label>
+          <input id="chatName" placeholder="e.g. Namukasa Sarah" value="Namukasa Sarah" />
+          <label for="chatCase">Case ID</label>
+          <input id="chatCase" placeholder="JST-2026-001" value="JST-2026-001" />
+          <div class="actions"><button id="loadThreadBtn" class="blue">Open conversation</button></div>
+        </div>
+
+        <div class="sheet">
+          <h2>Conversation</h2>
+          <p class="lead" id="chatScope">Open a case to see its messages.</p>
+          <div class="thread" id="chatThread"><p class="lead">No messages loaded yet.</p></div>
+          <label for="chatBody">Your message</label>
+          <textarea id="chatBody" placeholder="Type your question to the court…"></textarea>
+          <div class="actions"><button id="sendChatBtn">Send message</button></div>
+        </div>
+      </section>
+
+      <!-- ============ 2. REPORT A DISPUTE ============ -->
+      <section class="screen" id="screen-report">
+        <div class="sheet">
+          <h2>Report a Dispute</h2>
+          <p class="lead">First we check whether your matter belongs at an LC1 court. Official LC1 filing fee is UGX 2,000 — always ask for a receipt.</p>
+
+          <label for="reportCategory">What is the dispute about?</label>
+          <select id="reportCategory"></select>
+
+          <label for="reportClaim">How much money is involved (UGX)?</label>
+          <input id="reportClaim" type="number" min="0" step="1000" value="150000" />
+
+          <div id="precheck" class="notice info"></div>
+        </div>
+
+        <div class="sheet">
+          <h2>Your details</h2>
+          <label for="reportComplainant">Your full name</label>
+          <input id="reportComplainant" placeholder="Your name" />
+          <label for="reportPhone">Your phone (for SMS receipt)</label>
+          <input id="reportPhone" placeholder="+2567…" />
+          <div class="row">
+            <div>
+              <label for="reportRespondent">Other party</label>
+              <input id="reportRespondent" placeholder="Their name" />
+            </div>
+            <div>
+              <label for="reportCourt">Village court</label>
+              <input id="reportCourt" value="Ntinda II Village LC1 Court, Nakawa" />
+            </div>
+          </div>
+          <label for="reportSummary">What happened?</label>
+          <textarea id="reportSummary" placeholder="Short factual summary…"></textarea>
+          <div class="actions"><button id="submitReportBtn" class="blue">Send to the court docket</button></div>
+        </div>
+
+        <div class="sheet" id="receiptSheet" style="display:none;">
+          <h2>Your receipt</h2>
+          <div id="reportReceipt"></div>
+          <div class="actions"><button id="trackCaseBtn" class="ghost">Track this case in chat</button></div>
+        </div>
+      </section>
+
+      <!-- ============ 3. VERIFY A RECORD ============ -->
+      <section class="screen" id="screen-verify">
+        <div class="sheet">
+          <h2>Verify a Record</h2>
+          <p class="lead">Every JUSTO record carries a 12-character verification code. Check it here before you accept a copy of a judgment.</p>
+          <label for="verifyCase">Case ID</label>
+          <input id="verifyCase" placeholder="JST-2026-001" value="JST-2026-001" />
+          <label for="verifyHash">Verification code (optional)</label>
+          <input id="verifyHash" class="code" placeholder="A1B2C3D4E5F6" />
+          <div class="actions"><button id="verifyBtn" class="blue">Check this record</button></div>
+        </div>
+        <div class="sheet" id="verifyResultSheet" style="display:none;">
+          <h2>Check result</h2>
+          <div id="verifyResult"></div>
+        </div>
+      </section>
+
+      <!-- ============ 4. PHONE / USSD SIMULATOR ============ -->
+      <section class="screen" id="screen-phone">
+        <div class="sheet">
+          <h2>Phone (USSD)</h2>
+          <p class="lead">No internet? Dial <b>*384*2026#</b> on any basic phone. This simulator calls the real USSD service.</p>
+          <div class="ussd-phone" id="ussdScreen">Dial *384*2026# to start the JUSTO menu.</div>
+          <label for="ussdInput">Your choice</label>
+          <input id="ussdInput" placeholder="e.g. 1 then * for case status" />
+          <div class="actions">
+            <button id="ussdDialBtn" class="blue">Dial *384*2026#</button>
+            <button id="ussdSendBtn" class="ghost" disabled>Send</button>
+          </div>
+          <div class="keypad">
+            <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+            <button data-key="4">4</button><button data-key="5">5</button><button data-key="*">*</button>
+            <button data-key="6">6</button><button data-key="7">7</button><button data-key="8">8</button>
+            <button data-key="9">9</button><button data-key="0">0</button><button data-key="#">#</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <nav class="tabbar">
+      <button class="active" data-screen="chat"><span class="icon">&#9993;</span>Talk</button>
+      <button data-screen="report"><span class="icon">&#9998;</span>Report</button>
+      <button data-screen="verify"><span class="icon">&#10003;</span>Verify</button>
+      <button data-screen="phone"><span class="icon">&#9746;</span>Phone</button>
+    </nav>
+
+    <div id="toast"></div>
+  </div>
+
+  <script>
+    /* ===============================================================
+       Helpers
+       =============================================================== */
+    const $ = (id) => document.getElementById(id);
+    const state = { meta: null, sessionId: null, ussdText: '' };
+    const USSD_SHORTCODE = '*384*2026#';
+
+    function esc(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+      });
+    }
+    function money(value) { return 'UGX ' + Number(value || 0).toLocaleString('en-UG'); }
+    function badgeClass(status) {
+      if (status === 'RESOLVED_CONSENT') return 'resolved';
+      if (status === 'REFERRED_OUT_OF_JURISDICTION') return 'referred';
+      if (status === 'APPEALED_TO_LC2') return 'appealed';
+      return 'scheduled';
+    }
+    async function api(path, options) {
+      const response = await fetch(path, options);
+      const data = await response.json().catch(function () { return {}; });
+      if (!response.ok) throw new Error(data.error || ('Request failed: ' + response.status));
+      return data;
+    }
+    let toastTimer = null;
+    function toast(message, isError) {
+      const box = $('toast');
+      box.textContent = message;
+      box.className = 'show' + (isError ? ' error' : '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { box.className = ''; }, 4200);
+    }
+    function showScreen(name) {
+      document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+      document.querySelectorAll('nav.tabbar button').forEach(function (b) { b.classList.remove('active'); });
+      $('screen-' + name).classList.add('active');
+      document.querySelector('nav.tabbar button[data-screen="' + name + '"]').classList.add('active');
+    }
+
+    /* ===============================================================
+       Load the statutory rules once
+       =============================================================== */
+    async function loadMeta() {
+      state.meta = await api('/api/meta');
+      const select = $('reportCategory');
+      select.innerHTML = '';
+      const allowed = document.createElement('optgroup');
+      allowed.label = 'LC1 can hear these';
+      Object.keys(state.meta.allowed_categories).forEach(function (key) {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = state.meta.allowed_categories[key];
+        allowed.appendChild(option);
+      });
+      select.appendChild(allowed);
+      const blocked = document.createElement('optgroup');
+      blocked.label = 'Must go to another court / agency';
+      Object.keys(state.meta.prohibited_categories).forEach(function (key) {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = state.meta.prohibited_categories[key].label;
+        blocked.appendChild(option);
+      });
+      select.appendChild(blocked);
+      checkPrecheck();
+    }
+
+    /* ===============================================================
+       1. Talk to the Court
+       =============================================================== */
+    async function loadThread() {
+      const caseId = $('chatCase').value.trim().toUpperCase();
+      if (!caseId) { toast('Enter a Case ID first.', true); return; }
+      try {
+        const messages = await api('/api/messages?case_id=' + encodeURIComponent(caseId));
+        $('chatScope').textContent = caseId + ' · ' + messages.length + ' message(s)';
+        $('chatThread').innerHTML = messages.length ? messages.map(function (m) {
+          return '<div class="bubble ' + (m.sender_role === 'COURT' ? 'court' : 'citizen') + '">' +
+            '<span class="who">' + esc(m.sender_role) + ' · ' + esc(m.sender_name) + '</span>' +
+            esc(m.body) + '<span class="when">' + esc(m.created_at) + '</span></div>';
+        }).join('') : '<p class="lead">No messages for this case yet. You can send the first one.</p>';
+      } catch (error) { toast(error.message, true); }
+    }
+
+    async function sendChatMessage() {
+      const body = $('chatBody').value.trim();
+      const caseId = $('chatCase').value.trim().toUpperCase() || 'GENERAL';
+      if (!body) { toast('Type a message first.', true); return; }
+      try {
+        await api('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            case_id: caseId,
+            sender_role: 'CITIZEN',
+            sender_name: $('chatName').value.trim() || 'Citizen',
+            body: body
+          })
+        });
+        $('chatBody').value = '';
+        await loadThread();
+        toast('Message sent to the court.');
+      } catch (error) { toast(error.message, true); }
+    }
+
+    /* ===============================================================
+       2. Report a Dispute (jurisdiction pre-check first)
+       =============================================================== */
+    function checkPrecheck() {
+      if (!state.meta) return;
+      const category = $('reportCategory').value;
+      const claim = Number($('reportClaim').value) || 0;
+      const box = $('precheck');
+      const button = $('submitReportBtn');
+      const prohibited = state.meta.prohibited_categories[category];
+      const overLimit = claim > state.meta.monetary_limit_ugx;
+
+      if (prohibited || overLimit) {
+        let reasons = '';
+        let referral = null;
+        if (prohibited) {
+          reasons += '<div>' + esc(prohibited.reason) + '</div>';
+          referral = prohibited.referral;
+        }
+        if (overLimit) {
+          reasons += '<div>Your claim of ' + money(claim) + ' is above the LC limit of ' + money(state.meta.monetary_limit_ugx) + '.</div>';
+          if (!referral) referral = "Chief Magistrate's Court (Small Claims Registry)";
+        }
+        box.className = 'notice bad';
+        box.innerHTML = '<b>LC1 CANNOT HEAR THIS MATTER</b>' + reasons +
+          '<div style="margin-top:8px"><b>Go to:</b> ' + esc(referral) + '</div>';
+        button.disabled = true;
+      } else {
+        box.className = 'notice ok';
+        box.innerHTML = '<b>THIS BELONGS AT LC1</b>Your dispute is a civil matter within the ' +
+          money(state.meta.monetary_limit_ugx) + ' limit. The court must still seat at least ' +
+          state.meta.quorum_min_members + ' members including ' + state.meta.quorum_min_women + ' women.';
+        button.disabled = false;
+      }
+    }
+
+    async function submitReport() {
+      const payload = {
+        village_court: $('reportCourt').value.trim() || 'Village LC1 Court',
+        complainant_name: $('reportComplainant').value.trim(),
+        complainant_phone: $('reportPhone').value.trim(),
+        respondent_name: $('reportRespondent').value.trim(),
+        respondent_phone: '',
+        category: $('reportCategory').value,
+        claim_amount_ugx: Number($('reportClaim').value) || 0,
+        quorum_present: state.meta.quorum_min_members,
+        women_present: state.meta.quorum_min_women,
+        summary: $('reportSummary').value.trim(),
+        hearing_date: '2026-11-28 10:00',
+        created_at: new Date().toISOString().slice(0, 19)
+      };
+      try {
+        const result = await api('/api/cases', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const c = result.case;
+        $('reportReceipt').innerHTML =
+          '<div class="notice ok"><b>CASE REGISTERED</b>' +
+          'Case ID: <b>' + esc(c.case_id) + '</b><br>' +
+          'Verification code: <span class="code">' + esc(c.verification_hash) + '</span><br>' +
+          'Status: <span class="pill ' + badgeClass(c.status) + '">' + esc(c.status) + '</span><br>' +
+          'SMS receipt: ' + esc(result.sms_status.provider) + ' to ' + esc(c.complainant_phone || 'your phone') +
+          '</div>';
+        $('receiptSheet').style.display = 'block';
+        $('chatCase').value = c.case_id;
+        toast('Report sent. Keep your verification code.');
+      } catch (error) { toast(error.message, true); }
+    }
+
+    /* ===============================================================
+       3. Verify a Record
+       =============================================================== */
+    async function verifyRecord() {
+      const caseId = $('verifyCase').value.trim();
+      if (!caseId) { toast('Enter a Case ID.', true); return; }
+      const hash = $('verifyHash').value.trim();
+      const path = '/api/verify/' + encodeURIComponent(caseId) + (hash ? '?hash=' + encodeURIComponent(hash) : '');
+      try {
+        const result = await api(path);
+        const c = result.case;
+        const intact = result.record_intact;
+        const matches = result.hash_matches;
+        let html = '<div class="notice ' + (intact ? 'ok' : 'bad') + '"><b>' +
+          (intact ? 'RECORD INTACT' : 'RECORD ALTERED — DO NOT RELY ON IT') + '</b>' +
+          'Found case ' + esc(c.case_id) + ' at ' + esc(c.village_court) + '.</div>';
+        html += '<div class="notice info">' +
+          'Parties: ' + esc(c.complainant_name) + ' vs ' + esc(c.respondent_name) + '<br>' +
+          'Status: <span class="pill ' + badgeClass(c.status) + '">' + esc(c.status) + '</span><br>' +
+          'Verification code: <span class="code">' + esc(c.verification_hash) + '</span>' +
+          '</div>';
+        if (matches === null) {
+          html += '<p class="lead">Enter the code from your copy to check it matches.</p>';
+        } else {
+          html += '<div class="notice ' + (matches ? 'ok' : 'bad') + '"><b>' +
+            (matches ? 'CODE MATCHES — THIS COPY IS GENUINE' : 'CODE DOES NOT MATCH — THIS COPY MAY BE FAKE') +
+            '</b></div>';
+        }
+        $('verifyResult').innerHTML = html;
+        $('verifyResultSheet').style.display = 'block';
+      } catch (error) {
+        $('verifyResult').innerHTML = '<div class="notice bad"><b>NOT FOUND</b>' + esc(error.message) + '</div>';
+        $('verifyResultSheet').style.display = 'block';
+      }
+    }
+
+    /* ===============================================================
+       4. Phone / USSD simulator
+       =============================================================== */
+    async function callUssd(text) {
+      // Africa's Talking sends form fields; we use the same format here.
+      const body = new URLSearchParams({
+        text: text,
+        sessionId: state.sessionId || 'DEMO-SESSION',
+        phoneNumber: '+256700000000'
+      });
+      const response = await fetch('/ussd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body
+      });
+      if (!response.ok) throw new Error('USSD service returned ' + response.status);
+      return await response.text();
+    }
+
+    function updateUssdHint() {
+      $('ussdInput').placeholder = state.ussdText
+        ? 'Choices so far: ' + state.ussdText
+        : 'e.g. 1 for English, then 1 for case status';
+    }
+
+    async function dialUssd() {
+      state.sessionId = 'DEMO-' + Date.now();
+      state.ussdText = '';
+      $('ussdScreen').textContent = 'Dialling ' + USSD_SHORTCODE + '…';
+      $('ussdInput').value = '';
+      updateUssdHint();
+      try {
+        const reply = await callUssd(state.ussdText);
+        $('ussdScreen').textContent = reply;
+        $('ussdSendBtn').disabled = !reply.startsWith('CON');
+        $('ussdInput').focus();
+      } catch (error) {
+        $('ussdScreen').textContent = 'USSD service is not enabled yet.\n\n' + USSD_SHORTCODE +
+          ' will work after the USSD step is switched on.\n(' + error.message + ')';
+        $('ussdSendBtn').disabled = true;
+      }
+    }
+
+    async function sendUssdInput() {
+      const choice = $('ussdInput').value.trim();
+      if (!choice) return;
+      // Africa's Talking joins each answer with *, so we build the same chain.
+      state.ussdText = state.ussdText ? state.ussdText + '*' + choice : choice;
+      try {
+        const reply = await callUssd(state.ussdText);
+        $('ussdScreen').textContent = '> ' + state.ussdText + '\n\n' + reply;
+        $('ussdInput').value = '';
+        updateUssdHint();
+        $('ussdSendBtn').disabled = !reply.startsWith('CON');
+      } catch (error) {
+        $('ussdScreen').textContent = 'Error: ' + error.message;
+        $('ussdSendBtn').disabled = true;
+      }
+    }
+
+    /* ===============================================================
+       Wire up the app
+       =============================================================== */
+    function bindEvents() {
+      document.querySelectorAll('nav.tabbar button').forEach(function (button) {
+        button.addEventListener('click', function () { showScreen(button.dataset.screen); });
+      });
+
+      $('loadThreadBtn').addEventListener('click', loadThread);
+      $('chatBody').addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') { event.preventDefault(); sendChatMessage(); }
+      });
+      $('sendChatBtn').addEventListener('click', sendChatMessage);
+
+      $('reportCategory').addEventListener('change', checkPrecheck);
+      $('reportClaim').addEventListener('input', checkPrecheck);
+      $('submitReportBtn').addEventListener('click', submitReport);
+      $('trackCaseBtn').addEventListener('click', function () { showScreen('chat'); loadThread(); });
+
+      $('verifyBtn').addEventListener('click', verifyRecord);
+
+      $('ussdDialBtn').addEventListener('click', dialUssd);
+      $('ussdSendBtn').addEventListener('click', sendUssdInput);
+      $('ussdInput').addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') { event.preventDefault(); sendUssdInput(); }
+      });
+      document.querySelectorAll('.keypad button').forEach(function (button) {
+        button.addEventListener('click', function () {
+          $('ussdInput').value += button.dataset.key;
+          $('ussdInput').focus();
+        });
+      });
+    }
+
+    async function init() {
+      bindEvents();
+      await loadMeta();
+      await loadThread();
+    }
+    init().catch(function (error) { toast('Could not start the citizen app: ' + error.message, true); });
+  </script>
+</body>
+</html>
